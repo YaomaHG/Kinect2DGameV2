@@ -1,4 +1,4 @@
-using UnityEngine;
+Ôªøusing UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
@@ -46,12 +46,12 @@ public class MetaController : MonoBehaviour
             Canvas parentCanvas = messageText.GetComponentInParent<Canvas>();
             if (parentCanvas == null)
             {
-                Debug.LogError("[MetaController] °°°EL TEXTO NO EST¡ DENTRO DE UN CANVAS!!! NO SE VER¡.");
+                Debug.LogError("[MetaController] ¬°¬°¬°EL TEXTO NO EST√Å DENTRO DE UN CANVAS!!! NO SE VER√Å.");
                 
                 Canvas canvas = FindObjectOfType<Canvas>();
                 if (canvas == null)
                 {
-                    Debug.Log("[MetaController] Creando Canvas autom·ticamente...");
+                    Debug.Log("[MetaController] Creando Canvas autom√°ticamente...");
                     GameObject canvasObj = new GameObject("Canvas");
                     canvas = canvasObj.AddComponent<Canvas>();
                     canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -64,11 +64,11 @@ public class MetaController : MonoBehaviour
             }
             else
             {
-                Debug.Log("[MetaController] ? Texto est· dentro del Canvas: " + parentCanvas.name);
+                Debug.Log("[MetaController] ‚úì Texto est√° dentro del Canvas: " + parentCanvas.name);
             }
             
             messageText.text = "";
-            messageText.fontSize = 24;
+            messageText.fontSize = 6;
             messageText.color = Color.white;
             messageText.gameObject.SetActive(true);
             
@@ -76,7 +76,7 @@ public class MetaController : MonoBehaviour
         }
         else
         {
-            Debug.LogError("[MetaController] NO SE ENCONTR” NING⁄N TextMeshProUGUI EN LA ESCENA.");
+            Debug.LogError("[MetaController] NO SE ENCONTR√ì NING√öN TextMeshProUGUI EN LA ESCENA.");
         }
     }
 
@@ -102,19 +102,19 @@ public class MetaController : MonoBehaviour
         if (isPlayer)
         {
             goalReached = true;
-            Debug.Log("[MetaController] °Victoria alcanzada!");
+            Debug.Log("[MetaController] ¬°Victoria alcanzada!");
 
             if (messageText != null)
             {
-                messageText.text = "°Has llegado a la meta!";
-                messageText.fontSize = 24;
+                messageText.text = "¬°Has llegado a la meta!";
+                messageText.fontSize = 6;
                 messageText.color = new Color(1f, 1f, 0f, 1f);
                 messageText.fontStyle = FontStyles.Bold;
                 messageText.gameObject.SetActive(true);
                 messageText.enabled = true;
                 messageText.ForceMeshUpdate(true, true);
                 
-                Debug.Log("[MetaController] ??? MENSAJE ACTIVADO ???");
+                Debug.Log("[MetaController] ‚òÖ‚òÖ‚òÖ MENSAJE ACTIVADO ‚òÖ‚òÖ‚òÖ");
             }
             else
             {

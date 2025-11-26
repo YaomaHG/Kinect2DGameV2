@@ -45,7 +45,7 @@ public class TestMensajeVictoria : MonoBehaviour
         if (messageText == null) return;
 
         messageText.text = "¡MENSAJE DE VICTORIA!";
-        messageText.fontSize = 5;
+        messageText.fontSize = 6;
         messageText.color = new Color(1f, 1f, 0f, 1f);
         messageText.fontStyle = FontStyles.Bold;
         messageText.alignment = TextAlignmentOptions.Center;
