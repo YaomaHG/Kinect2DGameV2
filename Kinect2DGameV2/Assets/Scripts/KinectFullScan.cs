@@ -5,9 +5,9 @@ using System.Collections.Generic;
 
 /// <summary>
 /// Escanea userId (0..6) y jointIndex (0..25) para encontrar combos que devuelvan
-/// IsJointTracked==true o GetJointPosition != Vector3.zero. Mueve targetObject usando física
+/// IsJointTracked==true o GetJointPosition != Vector3.zero. Mueve targetObject usando fï¿½sica
 /// para respetar colisiones del laberinto.
-/// Uso: añadir al HandController, asignar Target Object y Play.
+/// Uso: aï¿½adir al HandController, asignar Target Object y Play.
 /// </summary>
 public class KinectFullScan : MonoBehaviour
 {
@@ -37,19 +37,19 @@ public class KinectFullScan : MonoBehaviour
         {
             rb = targetObject.GetComponent<Rigidbody2D>();
             
-            // Validación y configuración del Rigidbody2D
+            // Validaciï¿½n y configuraciï¿½n del Rigidbody2D
             if (rb == null)
             {
-                Debug.LogError("¡El personaje necesita un Rigidbody2D! Agregándolo automáticamente...");
+                Debug.LogError("ï¿½El personaje necesita un Rigidbody2D! Agregï¿½ndolo automï¿½ticamente...");
                 rb = targetObject.gameObject.AddComponent<Rigidbody2D>();
             }
 
-            // Configuración óptima para colisiones en laberinto
+            // Configuraciï¿½n ï¿½ptima para colisiones en laberinto
             rb.bodyType = RigidbodyType2D.Dynamic;
             rb.gravityScale = 0f;  // Sin gravedad para movimiento 2D top-down
-            rb.constraints = RigidbodyConstraints2D.FreezeRotation;  // Evitar rotación
-            rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;  // Mejor detección de colisiones
-            rb.interpolation = RigidbodyInterpolation2D.Interpolate;  // Movimiento más suave
+            rb.constraints = RigidbodyConstraints2D.FreezeRotation;  // Evitar rotaciï¿½n
+            rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;  // Mejor detecciï¿½n de colisiones
+            rb.interpolation = RigidbodyInterpolation2D.Interpolate;  // Movimiento mï¿½s suave
         }
         
         CacheKinectManager();
@@ -60,7 +60,7 @@ public class KinectFullScan : MonoBehaviour
         kmType = Type.GetType("KinectManager") ?? Type.GetType("KinectManager, Assembly-CSharp");
         if (kmType == null)
         {
-            Debug.LogError("[KinectFullScan] No se encontró tipo KinectManager en el proyecto.");
+            Debug.LogError("[KinectFullScan] No se encontrï¿½ tipo KinectManager en el proyecto.");
             return;
         }
 
@@ -95,14 +95,14 @@ public class KinectFullScan : MonoBehaviour
         bool initialized = (bool)(miIsInitialized?.Invoke(kManager, null) ?? false);
         if (!initialized)
         {
-            rb.velocity = Vector2.zero;
+            rb.linearVelocity = Vector2.zero;
             return;
         }
 
         bool userDetected = (bool)(miIsUserDetected?.Invoke(kManager, null) ?? false);
         if (!userDetected)
         {
-            rb.velocity = Vector2.zero;
+            rb.linearVelocity = Vector2.zero;
             if (Time.frameCount % 120 == 0) Debug.Log("[KinectFullScan] Waiting for users...");
             return;
         }
@@ -140,7 +140,7 @@ public class KinectFullScan : MonoBehaviour
                 }
                 catch (Exception ex)
                 {
-                    // si lanza excepción (firma distinta), no cortamos; posObj seguirá null
+                    // si lanza excepciï¿½n (firma distinta), no cortamos; posObj seguirï¿½ null
                 }
 
                 Vector3 pos = Vector3.zero;
@@ -167,7 +167,7 @@ public class KinectFullScan : MonoBehaviour
                     }
                 }
 
-                // consideramos "válido" si tracked==true o pos magnitude>0.001
+                // consideramos "vï¿½lido" si tracked==true o pos magnitude>0.001
                 if (tracked || (hasPos && pos.magnitude > 0.001f))
                 {
                     string key = uid + "_" + j;
@@ -179,7 +179,7 @@ public class KinectFullScan : MonoBehaviour
 
                     if (hasPos && pos.magnitude > 0.001f && targetObject != null)
                     {
-                        // Calcular posición objetivo
+                        // Calcular posiciï¿½n objetivo
                         float mx = pos.x * scaleX;
                         float my = pos.y * scaleY;
                         targetPosition = new Vector3(mx, my, fixedZ);
@@ -189,7 +189,7 @@ public class KinectFullScan : MonoBehaviour
                         if (Time.frameCount % 30 == 0)
                             Debug.Log("[KinectFullScan] Moviendo target por userId=" + uid + " joint=" + j + " -> pos " + pos.ToString("F3"));
                         
-                        // Usar el primer joint válido encontrado y salir
+                        // Usar el primer joint vï¿½lido encontrado y salir
                         break;
                     }
                 }
@@ -197,10 +197,10 @@ public class KinectFullScan : MonoBehaviour
             if (foundValidMovement) break;
         }
 
-        // Aplicar movimiento usando física si encontramos posición válida
+        // Aplicar movimiento usando fï¿½sica si encontramos posiciï¿½n vï¿½lida
         if (foundValidMovement && targetObject != null)
         {
-            // Calcular dirección hacia el objetivo
+            // Calcular direcciï¿½n hacia el objetivo
             Vector2 currentPos = new Vector2(targetObject.position.x, targetObject.position.y);
             Vector2 targetPos2D = new Vector2(targetPosition.x, targetPosition.y);
             Vector2 direction = (targetPos2D - currentPos).normalized;
@@ -209,21 +209,21 @@ public class KinectFullScan : MonoBehaviour
             float distanceToTarget = Vector2.Distance(currentPos, targetPos2D);
             if (distanceToTarget > 0.1f)
             {
-                rb.velocity = direction * moveSpeed;
+                rb.linearVelocity = direction * moveSpeed;
             }
             else
             {
-                rb.velocity = Vector2.zero;
+                rb.linearVelocity = Vector2.zero;
             }
         }
         else
         {
-            // No encontró posición válida: detener
-            rb.velocity = Vector2.zero;
+            // No encontrï¿½ posiciï¿½n vï¿½lida: detener
+            rb.linearVelocity = Vector2.zero;
             
             if (reported.Count == 0 && Time.frameCount % 120 == 0)
             {
-                Debug.Log("[KinectFullScan] No se encontraron joints útiles todavía. Asegúrate de estar visible al sensor y manos fuera de la ropa.");
+                Debug.Log("[KinectFullScan] No se encontraron joints ï¿½tiles todavï¿½a. Asegï¿½rate de estar visible al sensor y manos fuera de la ropa.");
             }
         }
     }
@@ -232,7 +232,7 @@ public class KinectFullScan : MonoBehaviour
     {
         if (targetObject != null)
         {
-            // Mantener Z fijo después de todos los cálculos de física
+            // Mantener Z fijo despuï¿½s de todos los cï¿½lculos de fï¿½sica
             Vector3 p = targetObject.position;
             if (p.z != fixedZ)
             {
@@ -245,6 +245,6 @@ public class KinectFullScan : MonoBehaviour
     // Detectar colisiones para debug
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        Debug.Log("[KinectFullScan] Colisión detectada con: " + collision.gameObject.name);
+        Debug.Log("[KinectFullScan] Colisiï¿½n detectada con: " + collision.gameObject.name);
     }
 }
