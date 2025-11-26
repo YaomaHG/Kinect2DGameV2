@@ -30,42 +30,39 @@ public class MetaController : MonoBehaviour
         {
             Debug.LogWarning("[MetaController] messageText no está asignado. Buscando 'MensajeVictoria'...");
             
-            // Buscar por nombre en toda la escena
-            GameObject[] allObjects = GameObject.FindObjectsOfType<GameObject>();
-            foreach (GameObject obj in allObjects)
+            // Buscar TODOS los TextMeshProUGUI en la escena
+            TextMeshProUGUI[] allTexts = GameObject.FindObjectsOfType<TextMeshProUGUI>();
+            Debug.Log("[MetaController] Encontrados " + allTexts.Length + " objetos TextMeshProUGUI en la escena.");
+            
+            foreach (TextMeshProUGUI txt in allTexts)
             {
-                if (obj.name == "MensajeVictoria")
+                Debug.Log("[MetaController] TextMeshProUGUI encontrado: " + txt.gameObject.name);
+                
+                if (txt.gameObject.name == "MensajeVictoria" || txt.gameObject.name.Contains("Mensaje"))
                 {
-                    messageText = obj.GetComponent<TextMeshProUGUI>();
-                    if (messageText != null)
+                    messageText = txt;
+                    Debug.Log("[MetaController] ¡MensajeVictoria encontrado! Asignado: " + txt.gameObject.name);
+                    break;
+                }
+            }
+            
+            // Si aún no se encontró, usar el primero que esté en un Canvas
+            if (messageText == null && allTexts.Length > 0)
+            {
+                foreach (TextMeshProUGUI txt in allTexts)
+                {
+                    if (txt.GetComponentInParent<Canvas>() != null)
                     {
-                        Debug.Log("[MetaController] ¡MensajeVictoria encontrado! Asignado automáticamente.");
+                        messageText = txt;
+                        Debug.LogWarning("[MetaController] Usando primer TextMeshProUGUI encontrado en Canvas: " + txt.gameObject.name);
                         break;
                     }
                 }
             }
             
-            // Si aún no se encontró, buscar en Canvas/MensajeVictoria
             if (messageText == null)
             {
-                Canvas canvas = GameObject.FindObjectOfType<Canvas>();
-                if (canvas != null)
-                {
-                    Transform mensajeTransform = canvas.transform.Find("MensajeVictoria");
-                    if (mensajeTransform != null)
-                    {
-                        messageText = mensajeTransform.GetComponent<TextMeshProUGUI>();
-                        if (messageText != null)
-                        {
-                            Debug.Log("[MetaController] MensajeVictoria encontrado en Canvas. Asignado automáticamente.");
-                        }
-                    }
-                }
-            }
-            
-            if (messageText == null)
-            {
-                Debug.LogError("[MetaController] No se pudo encontrar 'MensajeVictoria'. Asigna el TextMeshProUGUI en el Inspector.");
+                Debug.LogError("[MetaController] No se pudo encontrar ningún TextMeshProUGUI. Crea uno en el Canvas y nómbralo 'MensajeVictoria'.");
             }
         }
 
@@ -73,8 +70,31 @@ public class MetaController : MonoBehaviour
         if (messageText != null)
         {
             messageText.text = "";
-            messageText.gameObject.SetActive(true); // Asegurarse de que esté activo
-            Debug.Log("[MetaController] Mensaje de victoria configurado correctamente.");
+            
+            // Asegurarse de que el objeto Y el Canvas estén activos
+            messageText.gameObject.SetActive(true);
+            Canvas canvas = messageText.GetComponentInParent<Canvas>();
+            if (canvas != null)
+            {
+                canvas.gameObject.SetActive(true);
+                Debug.Log("[MetaController] Canvas activo: " + canvas.name);
+            }
+            
+            // Configuración para asegurar visibilidad
+            messageText.enabled = true;
+            messageText.alpha = 1f;
+            
+            // Verificar color
+            if (messageText.color.a < 0.1f)
+            {
+                messageText.color = new Color(1f, 1f, 1f, 1f); // Blanco opaco
+                Debug.LogWarning("[MetaController] Color del texto era transparente, cambiado a blanco opaco.");
+            }
+            
+            Debug.Log("[MetaController] Mensaje de victoria configurado. GameObject: " + messageText.gameObject.name + 
+                      " | Activo: " + messageText.gameObject.activeInHierarchy + 
+                      " | Enabled: " + messageText.enabled +
+                      " | Color: " + messageText.color);
         }
 
         Debug.Log("[MetaController] Meta configurada correctamente. Collider: " + col.GetType().Name + " | IsTrigger: " + col.isTrigger);
@@ -109,9 +129,30 @@ public class MetaController : MonoBehaviour
 
             if (messageText != null)
             {
+                // FORZAR VISIBILIDAD TOTAL
                 messageText.text = "¡Has llegado a la meta!";
-                messageText.gameObject.SetActive(true); // Asegurarse de que sea visible
-                Debug.Log("[MetaController] Mensaje mostrado en pantalla: " + messageText.text);
+                messageText.gameObject.SetActive(true);
+                messageText.enabled = true;
+                messageText.alpha = 1f;
+                
+                // Asegurar color visible
+                Color col = messageText.color;
+                col.a = 1f; // Alpha máximo
+                messageText.color = col;
+                
+                // Forzar actualización
+                messageText.ForceMeshUpdate();
+                
+                Debug.Log("[MetaController] ===== MENSAJE DE VICTORIA =====");
+                Debug.Log("[MetaController] Texto: " + messageText.text);
+                Debug.Log("[MetaController] GameObject: " + messageText.gameObject.name);
+                Debug.Log("[MetaController] Activo en jerarquía: " + messageText.gameObject.activeInHierarchy);
+                Debug.Log("[MetaController] Componente enabled: " + messageText.enabled);
+                Debug.Log("[MetaController] Color: " + messageText.color);
+                Debug.Log("[MetaController] Alpha: " + messageText.alpha);
+                Debug.Log("[MetaController] Font Size: " + messageText.fontSize);
+                Debug.Log("[MetaController] Rect: " + messageText.rectTransform.rect);
+                Debug.Log("[MetaController] ================================");
             }
             else
             {
@@ -137,6 +178,22 @@ public class MetaController : MonoBehaviour
         else
         {
             Debug.Log("[MetaController] Objeto no identificado como jugador: " + other.gameObject.name);
+        }
+    }
+    
+    // Método público para probar el mensaje manualmente
+    public void TestMessage()
+    {
+        if (messageText != null)
+        {
+            messageText.text = "PRUEBA DE MENSAJE";
+            messageText.color = Color.white;
+            messageText.fontSize = 48;
+            Debug.Log("[MetaController] Mensaje de prueba mostrado.");
+        }
+        else
+        {
+            Debug.LogError("[MetaController] No hay messageText asignado.");
         }
     }
 }
