@@ -31,6 +31,9 @@ public class HandTo2DUsingKinectManager : MonoBehaviour
     // Control de meta
     private bool reachedGoal = false;
 
+    // NUEVO: Para reset de posición
+    private Vector3 initialPosition;
+
 
     void Start()
     {
@@ -38,6 +41,9 @@ public class HandTo2DUsingKinectManager : MonoBehaviour
 
         if (targetObject == null)
             targetObject = this.transform;
+
+        // NUEVO: Guardar posición inicial
+        initialPosition = targetObject.position;
 
         spriteRenderer = targetObject.GetComponent<SpriteRenderer>();
         rb = targetObject.GetComponent<Rigidbody2D>();
@@ -108,6 +114,12 @@ public class HandTo2DUsingKinectManager : MonoBehaviour
 
         if (!kinect.IsPlayerCalibrated(userId)) return;
 
+        // NUEVO: Usar configuración de mano del sistema de accesibilidad si existe
+        if (AccessibilityConfig.Instance != null)
+        {
+            useRightHand = AccessibilityConfig.Instance.useRightHand;
+        }
+
         int handIndex = useRightHand ?
             (int)KinectWrapper.NuiSkeletonPositionIndex.HandRight :
             (int)KinectWrapper.NuiSkeletonPositionIndex.HandLeft;
@@ -148,19 +160,37 @@ public class HandTo2DUsingKinectManager : MonoBehaviour
         // Normalizamos para evitar valores raros del Kinect
         Vector2 nd = dir2.normalized;
 
+        // --- NUEVO: APLICAR CONFIGURACIONES DE ACCESIBILIDAD ---
+        float processedX = nd.x;
+        float processedY = nd.y;
+
+        if (AccessibilityConfig.Instance != null)
+        {
+            processedX = AccessibilityConfig.Instance.ApplySensitivityAndInversion(nd.x, true);
+            processedY = AccessibilityConfig.Instance.ApplySensitivityAndInversion(nd.y, false);
+        }
+
+        Vector2 processedDir = new Vector2(processedX, processedY);
+
+        // Renormalizar después de aplicar sensibilidad
+        if (processedDir.magnitude > 0.01f)
+        {
+            processedDir = processedDir.normalized;
+        }
+
         Vector2 finalDir = Vector2.zero;
 
         // --- 4 DIRECCIONES FINALES CON ZONA MUERTA REAL ---
 
         // Horizontal dominante
-        if (Mathf.Abs(nd.x) > Mathf.Abs(nd.y))
+        if (Mathf.Abs(processedDir.x) > Mathf.Abs(processedDir.y))
         {
-            if (nd.x > horizontalDeadzone)
+            if (processedDir.x > horizontalDeadzone)
             {
                 finalDir = Vector2.right;
                 spriteRenderer.sprite = rightSprite;
             }
-            else if (nd.x < -horizontalDeadzone)
+            else if (processedDir.x < -horizontalDeadzone)
             {
                 finalDir = Vector2.left;
                 spriteRenderer.sprite = leftSprite;
@@ -174,12 +204,12 @@ public class HandTo2DUsingKinectManager : MonoBehaviour
         }
         else  // Vertical dominante
         {
-            if (nd.y > verticalDeadzone)
+            if (processedDir.y > verticalDeadzone)
             {
                 finalDir = Vector2.up;
                 spriteRenderer.sprite = upSprite;
             }
-            else if (nd.y < -verticalDeadzone)
+            else if (processedDir.y < -verticalDeadzone)
             {
                 finalDir = Vector2.down;
                 spriteRenderer.sprite = downSprite;
@@ -217,7 +247,7 @@ public class HandTo2DUsingKinectManager : MonoBehaviour
         {
             reachedGoal = true;
             rb.linearVelocity = Vector2.zero;
-            
+
             if (messageText != null)
                 messageText.text = "¡Lo lograste, felicidades!";
 
@@ -229,14 +259,36 @@ public class HandTo2DUsingKinectManager : MonoBehaviour
     public void ReachGoal()
     {
         if (reachedGoal) return;
-        
+
         reachedGoal = true;
         rb.linearVelocity = Vector2.zero;
-        
+
         if (messageText != null)
             messageText.text = "¡Lo lograste, felicidades!";
 
         Debug.Log("[HandTo2DController] Meta alcanzada (notificado externamente)");
+    }
+
+    // NUEVO: Método público para resetear posición del personaje
+    public void ResetPlayerPosition()
+    {
+        if (reachedGoal) return;
+
+        rb.linearVelocity = Vector2.zero;
+
+        // Buscar posición inicial (puedes ajustar esto según tu escena)
+        GameObject startPoint = GameObject.Find("StartPoint");
+        if (startPoint != null)
+        {
+            targetObject.position = startPoint.transform.position;
+            Debug.Log("[HandTo2DController] Posición reseteada usando StartPoint");
+        }
+        else
+        {
+            // Usar la posición inicial guardada en Start()
+            targetObject.position = initialPosition;
+            Debug.Log("[HandTo2DController] Posición reseteada usando posición inicial guardada");
+        }
     }
 
     // Detectar colisiones con paredes para debug
