@@ -43,19 +43,48 @@ public class MetaController : MonoBehaviour
 
         if (messageText != null)
         {
+            Canvas parentCanvas = messageText.GetComponentInParent<Canvas>();
+            if (parentCanvas == null)
+            {
+                Debug.LogError("[MetaController] ¡¡¡EL TEXTO NO ESTÁ DENTRO DE UN CANVAS!!! NO SE VERÁ.");
+                
+                Canvas canvas = FindObjectOfType<Canvas>();
+                if (canvas == null)
+                {
+                    Debug.Log("[MetaController] Creando Canvas automáticamente...");
+                    GameObject canvasObj = new GameObject("Canvas");
+                    canvas = canvasObj.AddComponent<Canvas>();
+                    canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                    canvasObj.AddComponent<CanvasScaler>();
+                    canvasObj.AddComponent<GraphicRaycaster>();
+                }
+                
+                messageText.transform.SetParent(canvas.transform, false);
+                Debug.Log("[MetaController] Texto movido dentro del Canvas: " + canvas.name);
+            }
+            else
+            {
+                Debug.Log("[MetaController] ? Texto está dentro del Canvas: " + parentCanvas.name);
+            }
+            
             messageText.text = "";
-            messageText.fontSize = 72;
+            messageText.fontSize = 36;
             messageText.alignment = TextAlignmentOptions.Center;
             messageText.color = Color.white;
             messageText.gameObject.SetActive(true);
             
-            // Posicionar en el centro
             RectTransform rect = messageText.rectTransform;
             rect.anchorMin = new Vector2(0.5f, 0.5f);
             rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = Vector2.zero;
-            rect.sizeDelta = new Vector2(800, 200);
+            rect.sizeDelta = new Vector2(400, 80);
+            
+            Debug.Log("[MetaController] Mensaje configurado correctamente.");
+        }
+        else
+        {
+            Debug.LogError("[MetaController] NO SE ENCONTRÓ NINGÚN TextMeshProUGUI EN LA ESCENA.");
         }
     }
 
@@ -85,16 +114,20 @@ public class MetaController : MonoBehaviour
 
             if (messageText != null)
             {
-                messageText.text = "¡HAS LLEGADO A LA META!";
-                messageText.fontSize = 72;
-                messageText.color = new Color(1f, 1f, 0f, 1f); // Amarillo brillante
+                messageText.text = "¡Has llegado a la meta!";
+                messageText.fontSize = 36;
+                messageText.color = new Color(1f, 1f, 0f, 1f);
                 messageText.fontStyle = FontStyles.Bold;
                 messageText.alignment = TextAlignmentOptions.Center;
                 messageText.gameObject.SetActive(true);
                 messageText.enabled = true;
                 messageText.ForceMeshUpdate(true, true);
                 
-                Debug.Log("MENSAJE ACTIVADO: " + messageText.text);
+                Debug.Log("[MetaController] ??? MENSAJE ACTIVADO ???");
+            }
+            else
+            {
+                Debug.LogError("[MetaController] messageText es NULL.");
             }
 
             Rigidbody2D rb = other.attachedRigidbody;

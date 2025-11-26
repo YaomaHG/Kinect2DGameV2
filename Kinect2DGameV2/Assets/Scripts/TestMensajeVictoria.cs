@@ -25,7 +25,7 @@ public class TestMensajeVictoria : MonoBehaviour
         if (messageText != null)
         {
             messageText.text = "";
-            messageText.fontSize = 72;
+            messageText.fontSize = 36;
             messageText.alignment = TextAlignmentOptions.Center;
             messageText.color = Color.white;
             messageText.gameObject.SetActive(true);
@@ -45,7 +45,7 @@ public class TestMensajeVictoria : MonoBehaviour
         if (messageText == null) return;
 
         messageText.text = "¡MENSAJE DE VICTORIA!";
-        messageText.fontSize = 72;
+        messageText.fontSize = 10;
         messageText.color = new Color(1f, 1f, 0f, 1f); // Amarillo brillante
         messageText.fontStyle = FontStyles.Bold;
         messageText.alignment = TextAlignmentOptions.Center;
@@ -59,7 +59,7 @@ public class TestMensajeVictoria : MonoBehaviour
         rect.anchorMax = new Vector2(0.5f, 0.5f);
         rect.pivot = new Vector2(0.5f, 0.5f);
         rect.anchoredPosition = Vector2.zero;
-        rect.sizeDelta = new Vector2(800, 200);
+        rect.sizeDelta = new Vector2(400, 80);
         
         messageShown = true;
         Debug.Log("MENSAJE MOSTRADO: " + messageText.text + " | Activo: " + messageText.gameObject.activeInHierarchy);
