@@ -68,17 +68,9 @@ public class MetaController : MonoBehaviour
             }
             
             messageText.text = "";
-            messageText.fontSize = 36;
-            messageText.alignment = TextAlignmentOptions.Center;
+            messageText.fontSize = 24;
             messageText.color = Color.white;
             messageText.gameObject.SetActive(true);
-            
-            RectTransform rect = messageText.rectTransform;
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = Vector2.zero;
-            rect.sizeDelta = new Vector2(400, 80);
             
             Debug.Log("[MetaController] Mensaje configurado correctamente.");
         }
@@ -115,10 +107,9 @@ public class MetaController : MonoBehaviour
             if (messageText != null)
             {
                 messageText.text = "¡Has llegado a la meta!";
-                messageText.fontSize = 36;
+                messageText.fontSize = 24;
                 messageText.color = new Color(1f, 1f, 0f, 1f);
                 messageText.fontStyle = FontStyles.Bold;
-                messageText.alignment = TextAlignmentOptions.Center;
                 messageText.gameObject.SetActive(true);
                 messageText.enabled = true;
                 messageText.ForceMeshUpdate(true, true);
