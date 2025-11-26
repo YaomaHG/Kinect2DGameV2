@@ -5,7 +5,8 @@ using System.Collections.Generic;
 
 /// <summary>
 /// Escanea userId (0..6) y jointIndex (0..25) para encontrar combos que devuelvan
-/// IsJointTracked==true o GetJointPosition != Vector3.zero. Mueve targetObject si encuentra posición válida.
+/// IsJointTracked==true o GetJointPosition != Vector3.zero. Mueve targetObject usando física
+/// para respetar colisiones del laberinto.
 /// Uso: añadir al HandController, asignar Target Object y Play.
 /// </summary>
 public class KinectFullScan : MonoBehaviour
@@ -14,6 +15,7 @@ public class KinectFullScan : MonoBehaviour
     public float scaleX = 5f;
     public float scaleY = 5f;
     public float fixedZ = 0f;
+    public float moveSpeed = 3f; // Velocidad de seguimiento
 
     object kManager = null;
     Type kmType = null;
@@ -22,11 +24,34 @@ public class KinectFullScan : MonoBehaviour
     MethodInfo miIsJointTracked = null;
     MethodInfo miGetJointPos = null;
 
+    private Rigidbody2D rb;
     HashSet<string> reported = new HashSet<string>();
 
     void Start()
     {
-        if (targetObject == null) Debug.LogWarning("[KinectFullScan] Asigna Target Object en el Inspector.");
+        if (targetObject == null)
+        {
+            Debug.LogWarning("[KinectFullScan] Asigna Target Object en el Inspector.");
+        }
+        else
+        {
+            rb = targetObject.GetComponent<Rigidbody2D>();
+            
+            // Validación y configuración del Rigidbody2D
+            if (rb == null)
+            {
+                Debug.LogError("¡El personaje necesita un Rigidbody2D! Agregándolo automáticamente...");
+                rb = targetObject.gameObject.AddComponent<Rigidbody2D>();
+            }
+
+            // Configuración óptima para colisiones en laberinto
+            rb.bodyType = RigidbodyType2D.Dynamic;
+            rb.gravityScale = 0f;  // Sin gravedad para movimiento 2D top-down
+            rb.constraints = RigidbodyConstraints2D.FreezeRotation;  // Evitar rotación
+            rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;  // Mejor detección de colisiones
+            rb.interpolation = RigidbodyInterpolation2D.Interpolate;  // Movimiento más suave
+        }
+        
         CacheKinectManager();
     }
 
@@ -65,16 +90,25 @@ public class KinectFullScan : MonoBehaviour
     void Update()
     {
         if (kManager == null) { CacheKinectManager(); if (kManager == null) return; }
+        if (rb == null) return;
 
         bool initialized = (bool)(miIsInitialized?.Invoke(kManager, null) ?? false);
-        if (!initialized) return;
+        if (!initialized)
+        {
+            rb.velocity = Vector2.zero;
+            return;
+        }
 
         bool userDetected = (bool)(miIsUserDetected?.Invoke(kManager, null) ?? false);
         if (!userDetected)
         {
+            rb.velocity = Vector2.zero;
             if (Time.frameCount % 120 == 0) Debug.Log("[KinectFullScan] Waiting for users...");
             return;
         }
+
+        bool foundValidMovement = false;
+        Vector3 targetPosition = Vector3.zero;
 
         // Barrido: userId 0..6 (UInt32), joints 0..25
         for (uint uid = 0; uid <= 6; uid++)
@@ -107,7 +141,6 @@ public class KinectFullScan : MonoBehaviour
                 catch (Exception ex)
                 {
                     // si lanza excepción (firma distinta), no cortamos; posObj seguirá null
-                    // Debug.Log("[KinectFullScan] GetJointPosition threw for ("+uid+","+j+"): " + ex.GetBaseException().Message);
                 }
 
                 Vector3 pos = Vector3.zero;
@@ -146,19 +179,72 @@ public class KinectFullScan : MonoBehaviour
 
                     if (hasPos && pos.magnitude > 0.001f && targetObject != null)
                     {
-                        // mover target directamente (map XY)
-                        float mx = pos.x * scaleX + targetObject.position.x * 0; // simple mapping
-                        float my = pos.y * scaleY + targetObject.position.y * 0;
-                        targetObject.position = new Vector3(mx, my, fixedZ);
-                        // también loguear una vez
+                        // Calcular posición objetivo
+                        float mx = pos.x * scaleX;
+                        float my = pos.y * scaleY;
+                        targetPosition = new Vector3(mx, my, fixedZ);
+                        foundValidMovement = true;
+                        
+                        // Loguear una vez cada 30 frames
                         if (Time.frameCount % 30 == 0)
                             Debug.Log("[KinectFullScan] Moviendo target por userId=" + uid + " joint=" + j + " -> pos " + pos.ToString("F3"));
+                        
+                        // Usar el primer joint válido encontrado y salir
+                        break;
                     }
                 }
             }
+            if (foundValidMovement) break;
         }
 
-        // si no encontró nada todavía, imprime cada 120 frames
-        if (reported.Count == 0 && Time.frameCount % 120 == 0) Debug.Log("[KinectFullScan] No se encontraron joints útiles todavía. Asegúrate de estar visible al sensor y manos fuera de la ropa.");
+        // Aplicar movimiento usando física si encontramos posición válida
+        if (foundValidMovement && targetObject != null)
+        {
+            // Calcular dirección hacia el objetivo
+            Vector2 currentPos = new Vector2(targetObject.position.x, targetObject.position.y);
+            Vector2 targetPos2D = new Vector2(targetPosition.x, targetPosition.y);
+            Vector2 direction = (targetPos2D - currentPos).normalized;
+            
+            // Aplicar velocidad hacia el objetivo - RESPETA COLISIONES
+            float distanceToTarget = Vector2.Distance(currentPos, targetPos2D);
+            if (distanceToTarget > 0.1f)
+            {
+                rb.velocity = direction * moveSpeed;
+            }
+            else
+            {
+                rb.velocity = Vector2.zero;
+            }
+        }
+        else
+        {
+            // No encontró posición válida: detener
+            rb.velocity = Vector2.zero;
+            
+            if (reported.Count == 0 && Time.frameCount % 120 == 0)
+            {
+                Debug.Log("[KinectFullScan] No se encontraron joints útiles todavía. Asegúrate de estar visible al sensor y manos fuera de la ropa.");
+            }
+        }
+    }
+
+    void LateUpdate()
+    {
+        if (targetObject != null)
+        {
+            // Mantener Z fijo después de todos los cálculos de física
+            Vector3 p = targetObject.position;
+            if (p.z != fixedZ)
+            {
+                p.z = fixedZ;
+                targetObject.position = p;
+            }
+        }
+    }
+
+    // Detectar colisiones para debug
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        Debug.Log("[KinectFullScan] Colisión detectada con: " + collision.gameObject.name);
     }
 }

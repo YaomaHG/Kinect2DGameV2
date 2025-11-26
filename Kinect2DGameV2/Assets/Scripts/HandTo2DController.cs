@@ -23,9 +23,13 @@ public class HandTo2DUsingKinectManager : MonoBehaviour
     public Sprite rightSprite;
 
     private SpriteRenderer spriteRenderer;
+    private Rigidbody2D rb;
 
     // Mensaje
     public TextMeshProUGUI messageText;
+
+    // Control de meta
+    private bool reachedGoal = false;
 
 
     void Start()
@@ -36,6 +40,21 @@ public class HandTo2DUsingKinectManager : MonoBehaviour
             targetObject = this.transform;
 
         spriteRenderer = targetObject.GetComponent<SpriteRenderer>();
+        rb = targetObject.GetComponent<Rigidbody2D>();
+
+        // Validaciï¿½n y configuraciï¿½n del Rigidbody2D
+        if (rb == null)
+        {
+            Debug.LogError("ï¿½El personaje necesita un Rigidbody2D! Agregï¿½ndolo automï¿½ticamente...");
+            rb = targetObject.gameObject.AddComponent<Rigidbody2D>();
+        }
+
+        // Configuraciï¿½n ï¿½ptima para colisiones en laberinto
+        rb.bodyType = RigidbodyType2D.Dynamic;
+        rb.gravityScale = 0f;  // Sin gravedad para movimiento 2D top-down
+        rb.constraints = RigidbodyConstraints2D.FreezeRotation;  // Evitar rotaciï¿½n
+        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;  // Mejor detecciï¿½n de colisiones
+        rb.interpolation = RigidbodyInterpolation2D.Interpolate;  // Movimiento mï¿½s suave
 
         if (messageText != null)
             messageText.text = "";
@@ -44,6 +63,13 @@ public class HandTo2DUsingKinectManager : MonoBehaviour
 
     void Update()
     {
+        // Si ya llegï¿½ a la meta, detener control
+        if (reachedGoal)
+        {
+            rb.linearVelocity = Vector2.zero;
+            return;
+        }
+
         if (kinect == null) return;
         if (!kinect.IsInitialized() || !kinect.IsUserDetected()) return;
 
@@ -64,6 +90,7 @@ public class HandTo2DUsingKinectManager : MonoBehaviour
         if (!kinect.IsJointTracked(userId, handIndex))
         {
             spriteRenderer.sprite = idleSprite;
+            rb.linearVelocity = Vector2.zero;
             return;
         }
 
@@ -72,6 +99,7 @@ public class HandTo2DUsingKinectManager : MonoBehaviour
         if (!kinect.IsJointTracked(userId, elbowIndex))
         {
             spriteRenderer.sprite = idleSprite;
+            rb.linearVelocity = Vector2.zero;
             return;
         }
 
@@ -80,10 +108,11 @@ public class HandTo2DUsingKinectManager : MonoBehaviour
 
         Vector2 dir2 = new Vector2(direction.x, direction.y);
 
-        // PEQUEÑA magnitud = mano quieta
+        // PEQUEï¿½A magnitud = mano quieta
         if (dir2.magnitude < minDirectionMagnitude)
         {
             spriteRenderer.sprite = idleSprite;
+            rb.linearVelocity = Vector2.zero;
             return;
         }
 
@@ -110,6 +139,7 @@ public class HandTo2DUsingKinectManager : MonoBehaviour
             else
             {
                 spriteRenderer.sprite = idleSprite;
+                rb.linearVelocity = Vector2.zero;
                 return;
             }
         }
@@ -128,31 +158,45 @@ public class HandTo2DUsingKinectManager : MonoBehaviour
             else
             {
                 spriteRenderer.sprite = idleSprite;
+                rb.linearVelocity = Vector2.zero;
                 return;
             }
         }
 
-        // Movimiento final
-        Rigidbody2D rb = targetObject.GetComponent<Rigidbody2D>();
-        rb.MovePosition(rb.position + finalDir * moveSpeed * Time.deltaTime);
+        // Movimiento usando velocidad - RESPETA COLISIONES
+        rb.linearVelocity = finalDir * moveSpeed;
+    }
 
-
-        // Mantener Z
+    void LateUpdate()
+    {
+        // Mantener Z fijo despuï¿½s de todos los cï¿½lculos de fï¿½sica
         Vector3 p = targetObject.position;
-        p.z = fixedZ;
-        targetObject.position = p;
+        if (p.z != fixedZ)
+        {
+            p.z = fixedZ;
+            targetObject.position = p;
+        }
     }
 
 
-    // META SIN TAG
+    // META SIN TAG - Detecta colisiï¿½n con trigger
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (other.gameObject.name == "Meta")
         {
+            reachedGoal = true;
+            rb.linearVelocity = Vector2.zero;
+            
             if (messageText != null)
-                messageText.text = "¡Lo lograste, felicidades!";
+                messageText.text = "ï¿½Lo lograste, felicidades!";
 
-            Debug.Log("Jugador llegó a la meta");
+            Debug.Log("Jugador llegï¿½ a la meta");
         }
+    }
+
+    // Opcional: Detectar colisiones con paredes para debug
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        Debug.Log("Colisiï¿½n detectada con: " + collision.gameObject.name);
     }
 }
