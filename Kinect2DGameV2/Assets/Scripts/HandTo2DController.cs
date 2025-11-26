@@ -42,19 +42,48 @@ public class HandTo2DUsingKinectManager : MonoBehaviour
         spriteRenderer = targetObject.GetComponent<SpriteRenderer>();
         rb = targetObject.GetComponent<Rigidbody2D>();
 
-        // Validaci�n y configuraci�n del Rigidbody2D
+        // Validación y configuración del Rigidbody2D
         if (rb == null)
         {
-            Debug.LogError("�El personaje necesita un Rigidbody2D! Agreg�ndolo autom�ticamente...");
+            Debug.LogError("¡El personaje necesita un Rigidbody2D! Agregándolo automáticamente...");
             rb = targetObject.gameObject.AddComponent<Rigidbody2D>();
         }
 
-        // Configuraci�n �ptima para colisiones en laberinto
+        // Configuración óptima para colisiones en laberinto
         rb.bodyType = RigidbodyType2D.Dynamic;
         rb.gravityScale = 0f;  // Sin gravedad para movimiento 2D top-down
-        rb.constraints = RigidbodyConstraints2D.FreezeRotation;  // Evitar rotaci�n
-        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;  // Mejor detecci�n de colisiones
-        rb.interpolation = RigidbodyInterpolation2D.Interpolate;  // Movimiento m�s suave
+        rb.constraints = RigidbodyConstraints2D.FreezeRotation;  // Evitar rotación
+        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;  // Mejor detección de colisiones
+        rb.interpolation = RigidbodyInterpolation2D.Interpolate;  // Movimiento más suave
+
+        // IMPORTANTE: Asegurarse de que el personaje tenga un collider NO-trigger para paredes
+        Collider2D col = targetObject.GetComponent<Collider2D>();
+        if (col == null)
+        {
+            Debug.LogError("[HandTo2DController] El personaje necesita un Collider2D. Agregando CapsuleCollider2D...");
+            col = targetObject.gameObject.AddComponent<CapsuleCollider2D>();
+        }
+
+        // El collider del personaje NO debe ser trigger (para chocar con paredes)
+        if (col.isTrigger)
+        {
+            Debug.LogWarning("[HandTo2DController] El collider del personaje no debe ser Trigger (para colisiones con paredes). Desactivando Trigger...");
+            col.isTrigger = false;
+        }
+
+        // Agregar tag "Player" si no lo tiene (para que la meta lo detecte)
+        if (!targetObject.CompareTag("Player"))
+        {
+            try
+            {
+                targetObject.tag = "Player";
+                Debug.Log("[HandTo2DController] Tag 'Player' asignado al personaje.");
+            }
+            catch
+            {
+                Debug.LogWarning("[HandTo2DController] No se pudo asignar tag 'Player'. Asegúrate de que el tag existe en el proyecto.");
+            }
+        }
 
         if (messageText != null)
             messageText.text = "";
@@ -63,7 +92,7 @@ public class HandTo2DUsingKinectManager : MonoBehaviour
 
     void Update()
     {
-        // Si ya lleg� a la meta, detener control
+        // Si ya llegó a la meta, detener control
         if (reachedGoal)
         {
             rb.linearVelocity = Vector2.zero;
@@ -108,7 +137,7 @@ public class HandTo2DUsingKinectManager : MonoBehaviour
 
         Vector2 dir2 = new Vector2(direction.x, direction.y);
 
-        // PEQUE�A magnitud = mano quieta
+        // PEQUEÑA magnitud = mano quieta
         if (dir2.magnitude < minDirectionMagnitude)
         {
             spriteRenderer.sprite = idleSprite;
@@ -169,7 +198,7 @@ public class HandTo2DUsingKinectManager : MonoBehaviour
 
     void LateUpdate()
     {
-        // Mantener Z fijo despu�s de todos los c�lculos de f�sica
+        // Mantener Z fijo después de todos los cálculos de física
         Vector3 p = targetObject.position;
         if (p.z != fixedZ)
         {
@@ -179,24 +208,40 @@ public class HandTo2DUsingKinectManager : MonoBehaviour
     }
 
 
-    // META SIN TAG - Detecta colisi�n con trigger
+    // META SIN TAG - Detecta colisión con trigger (método alternativo si no usas MetaController)
     private void OnTriggerEnter2D(Collider2D other)
     {
-        if (other.gameObject.name == "Meta")
+        if (reachedGoal) return;
+
+        if (other.gameObject.name == "Meta" || other.CompareTag("Goal"))
         {
             reachedGoal = true;
             rb.linearVelocity = Vector2.zero;
             
             if (messageText != null)
-                messageText.text = "�Lo lograste, felicidades!";
+                messageText.text = "¡Lo lograste, felicidades!";
 
-            Debug.Log("Jugador lleg� a la meta");
+            Debug.Log("[HandTo2DController] Jugador llegó a la meta: " + other.gameObject.name);
         }
     }
 
-    // Opcional: Detectar colisiones con paredes para debug
+    // Método público para que MetaController pueda notificar externamente
+    public void ReachGoal()
+    {
+        if (reachedGoal) return;
+        
+        reachedGoal = true;
+        rb.linearVelocity = Vector2.zero;
+        
+        if (messageText != null)
+            messageText.text = "¡Lo lograste, felicidades!";
+
+        Debug.Log("[HandTo2DController] Meta alcanzada (notificado externamente)");
+    }
+
+    // Detectar colisiones con paredes para debug
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        Debug.Log("Colisi�n detectada con: " + collision.gameObject.name);
+        Debug.Log("[HandTo2DController] Colisión detectada con: " + collision.gameObject.name);
     }
 }

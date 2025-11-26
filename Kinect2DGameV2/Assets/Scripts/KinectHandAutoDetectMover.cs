@@ -4,9 +4,9 @@ using System.Reflection;
 using System.Collections.Generic;
 
 /// <summary>
-/// Intenta detectar autom�ticamente un userId v�lido (1..6) y el joint de mano trackeado,
-/// y mueve el targetObject usando f�sica (Rigidbody2D) para respetar colisiones del laberinto.
-/// �salo para comprobar en tiempo real qu� userId/joint est�n activos en tu Kinect v1 + plugin.
+/// Intenta detectar automáticamente un userId válido (1..6) y el joint de mano trackeado,
+/// y mueve el targetObject usando física (Rigidbody2D) para respetar colisiones del laberinto.
+/// Úsalo para comprobar en tiempo real qué userId/joint están activos en tu Kinect v1 + plugin.
 /// </summary>
 public class KinectHandAutoDetectMover : MonoBehaviour
 {
@@ -27,10 +27,11 @@ public class KinectHandAutoDetectMover : MonoBehaviour
     private Rigidbody2D rb;
     private Vector3 lastValidPosition = Vector3.zero;
     private bool hasValidPosition = false;
+    private bool reachedGoal = false;
 
     // candidate user ids a probar (UInt32)
     uint[] userCandidates = new uint[] { 1u, 2u, 3u, 4u, 5u, 6u };
-    int[] jointCandidates = new int[] { 11, 7 }; // 11 = HandRight, 7 = HandLeft (seg�n wrapper)
+    int[] jointCandidates = new int[] { 11, 7 }; // 11 = HandRight, 7 = HandLeft (según wrapper)
 
     void Start()
     {
@@ -42,19 +43,47 @@ public class KinectHandAutoDetectMover : MonoBehaviour
         {
             rb = targetObject.GetComponent<Rigidbody2D>();
             
-            // Validaci�n y configuraci�n del Rigidbody2D
+            // Validación y configuración del Rigidbody2D
             if (rb == null)
             {
-                Debug.LogError("�El personaje necesita un Rigidbody2D! Agreg�ndolo autom�ticamente...");
+                Debug.LogError("¡El personaje necesita un Rigidbody2D! Agregándolo automáticamente...");
                 rb = targetObject.gameObject.AddComponent<Rigidbody2D>();
             }
 
-            // Configuraci�n �ptima para colisiones en laberinto
+            // Configuración óptima para colisiones en laberinto
             rb.bodyType = RigidbodyType2D.Dynamic;
             rb.gravityScale = 0f;  // Sin gravedad para movimiento 2D top-down
-            rb.constraints = RigidbodyConstraints2D.FreezeRotation;  // Evitar rotaci�n
-            rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;  // Mejor detecci�n de colisiones
-            rb.interpolation = RigidbodyInterpolation2D.Interpolate;  // Movimiento m�s suave
+            rb.constraints = RigidbodyConstraints2D.FreezeRotation;  // Evitar rotación
+            rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;  // Mejor detección de colisiones
+            rb.interpolation = RigidbodyInterpolation2D.Interpolate;  // Movimiento más suave
+
+            // Asegurarse de que tenga un collider NO-trigger
+            Collider2D col = targetObject.GetComponent<Collider2D>();
+            if (col == null)
+            {
+                Debug.LogError("[KinectHandAutoDetectMover] El personaje necesita un Collider2D. Agregando CapsuleCollider2D...");
+                col = targetObject.gameObject.AddComponent<CapsuleCollider2D>();
+            }
+            
+            if (col.isTrigger)
+            {
+                Debug.LogWarning("[KinectHandAutoDetectMover] El collider del personaje no debe ser Trigger. Desactivando...");
+                col.isTrigger = false;
+            }
+
+            // Agregar tag "Player" si no lo tiene
+            if (!targetObject.CompareTag("Player"))
+            {
+                try
+                {
+                    targetObject.tag = "Player";
+                    Debug.Log("[KinectHandAutoDetectMover] Tag 'Player' asignado.");
+                }
+                catch
+                {
+                    Debug.LogWarning("[KinectHandAutoDetectMover] No se pudo asignar tag 'Player'.");
+                }
+            }
         }
         
         CacheKinectManager();
@@ -65,7 +94,7 @@ public class KinectHandAutoDetectMover : MonoBehaviour
         kmType = Type.GetType("KinectManager") ?? Type.GetType("KinectManager, Assembly-CSharp");
         if (kmType == null)
         {
-            Debug.LogError("[KinectHandAutoDetectMover] No se encontr� KinectManager en el proyecto.");
+            Debug.LogError("[KinectHandAutoDetectMover] No se encontró KinectManager en el proyecto.");
             return;
         }
 
@@ -98,6 +127,13 @@ public class KinectHandAutoDetectMover : MonoBehaviour
         if (kManager == null) { CacheKinectManager(); if (kManager == null) return; }
         if (rb == null) return;
 
+        // Si ya llegó a la meta, detener control
+        if (reachedGoal)
+        {
+            rb.linearVelocity = Vector2.zero;
+            return;
+        }
+
         bool initialized = (bool)(miIsInitialized?.Invoke(kManager, null) ?? false);
         if (!initialized)
         {
@@ -112,13 +148,13 @@ public class KinectHandAutoDetectMover : MonoBehaviour
             return;
         }
 
-        // intentamos detectar un userId y joint v�lidos
+        // intentamos detectar un userId y joint válidos
         uint foundUser = 0u;
         int foundJoint = -1;
         Vector3 foundPos = Vector3.zero;
         bool found = false;
 
-        // priorizar mano derecha o izquierda seg�n preferRightHand
+        // priorizar mano derecha o izquierda según preferRightHand
         int[] jointOrder = preferRightHand ? new int[] { 11, 7 } : new int[] { 7, 11 };
 
         foreach (uint uid in userCandidates)
@@ -132,7 +168,7 @@ public class KinectHandAutoDetectMover : MonoBehaviour
                     object res = miIsJointTracked?.Invoke(kManager, args);
                     if (res is bool && (bool)res)
                     {
-                        // est� trackeado: ahora pedir posici�n
+                        // está trackeado: ahora pedir posición
                         object posObj = null;
                         try
                         {
@@ -185,7 +221,7 @@ public class KinectHandAutoDetectMover : MonoBehaviour
 
                             if (ok)
                             {
-                                // si la posici�n no es cero, la consideramos v�lida
+                                // si la posición no es cero, la consideramos válida
                                 if (p != Vector3.zero)
                                 {
                                     foundUser = uid;
@@ -214,12 +250,12 @@ public class KinectHandAutoDetectMover : MonoBehaviour
 
         if (found && targetObject != null)
         {
-            // Calcular posici�n objetivo
+            // Calcular posición objetivo
             float mappedX = foundPos.x * scaleX;
             float mappedY = foundPos.y * scaleY;
             Vector3 targetPosition = new Vector3(mappedX, mappedY, fixedZ);
             
-            // Calcular direcci�n hacia el objetivo
+            // Calcular dirección hacia el objetivo
             Vector2 currentPos = new Vector2(targetObject.position.x, targetObject.position.y);
             Vector2 targetPos2D = new Vector2(targetPosition.x, targetPosition.y);
             Vector2 direction = (targetPos2D - currentPos).normalized;
@@ -244,7 +280,7 @@ public class KinectHandAutoDetectMover : MonoBehaviour
             
             if (Time.frameCount % 60 == 0 && hasValidPosition == false)
             {
-                Debug.Log("[KinectHandAutoDetectMover] No se encontr� userId/joint usable a�n. Aseg�rate de estar frente al sensor.");
+                Debug.Log("[KinectHandAutoDetectMover] No se encontró userId/joint usable aún. Asegúrate de estar frente al sensor.");
             }
         }
     }
@@ -253,7 +289,7 @@ public class KinectHandAutoDetectMover : MonoBehaviour
     {
         if (targetObject != null)
         {
-            // Mantener Z fijo despu�s de todos los c�lculos de f�sica
+            // Mantener Z fijo después de todos los cálculos de física
             Vector3 p = targetObject.position;
             if (p.z != fixedZ)
             {
@@ -263,9 +299,31 @@ public class KinectHandAutoDetectMover : MonoBehaviour
         }
     }
 
+    // Detectar meta
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        if (reachedGoal) return;
+
+        if (other.gameObject.name == "Meta" || other.CompareTag("Goal"))
+        {
+            reachedGoal = true;
+            rb.linearVelocity = Vector2.zero;
+            Debug.Log("[KinectHandAutoDetectMover] ¡Meta alcanzada!");
+        }
+    }
+
+    // Método público para notificación externa
+    public void ReachGoal()
+    {
+        if (reachedGoal) return;
+        reachedGoal = true;
+        rb.linearVelocity = Vector2.zero;
+        Debug.Log("[KinectHandAutoDetectMover] Meta alcanzada (notificado externamente)");
+    }
+
     // Detectar colisiones para debug
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        Debug.Log("[KinectHandAutoDetectMover] Colisi�n detectada con: " + collision.gameObject.name);
+        Debug.Log("[KinectHandAutoDetectMover] Colisión detectada con: " + collision.gameObject.name);
     }
 }

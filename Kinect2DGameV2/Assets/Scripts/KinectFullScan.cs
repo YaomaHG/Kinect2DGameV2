@@ -25,6 +25,7 @@ public class KinectFullScan : MonoBehaviour
     MethodInfo miGetJointPos = null;
 
     private Rigidbody2D rb;
+    private bool reachedGoal = false;
     HashSet<string> reported = new HashSet<string>();
 
     void Start()
@@ -50,6 +51,34 @@ public class KinectFullScan : MonoBehaviour
             rb.constraints = RigidbodyConstraints2D.FreezeRotation;  // Evitar rotaci�n
             rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;  // Mejor detecci�n de colisiones
             rb.interpolation = RigidbodyInterpolation2D.Interpolate;  // Movimiento m�s suave
+
+            // Asegurarse de que tenga un collider NO-trigger
+            Collider2D col = targetObject.GetComponent<Collider2D>();
+            if (col == null)
+            {
+                Debug.LogError("[KinectFullScan] El personaje necesita un Collider2D. Agregando CapsuleCollider2D...");
+                col = targetObject.gameObject.AddComponent<CapsuleCollider2D>();
+            }
+            
+            if (col.isTrigger)
+            {
+                Debug.LogWarning("[KinectFullScan] El collider del personaje no debe ser Trigger. Desactivando...");
+                col.isTrigger = false;
+            }
+
+            // Agregar tag "Player" si no lo tiene
+            if (!targetObject.CompareTag("Player"))
+            {
+                try
+                {
+                    targetObject.tag = "Player";
+                    Debug.Log("[KinectFullScan] Tag 'Player' asignado.");
+                }
+                catch
+                {
+                    Debug.LogWarning("[KinectFullScan] No se pudo asignar tag 'Player'.");
+                }
+            }
         }
         
         CacheKinectManager();
@@ -91,6 +120,13 @@ public class KinectFullScan : MonoBehaviour
     {
         if (kManager == null) { CacheKinectManager(); if (kManager == null) return; }
         if (rb == null) return;
+
+        // Si ya lleg� a la meta, detener control
+        if (reachedGoal)
+        {
+            rb.linearVelocity = Vector2.zero;
+            return;
+        }
 
         bool initialized = (bool)(miIsInitialized?.Invoke(kManager, null) ?? false);
         if (!initialized)
@@ -240,6 +276,28 @@ public class KinectFullScan : MonoBehaviour
                 targetObject.position = p;
             }
         }
+    }
+
+    // Detectar meta
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        if (reachedGoal) return;
+
+        if (other.gameObject.name == "Meta" || other.CompareTag("Goal"))
+        {
+            reachedGoal = true;
+            rb.linearVelocity = Vector2.zero;
+            Debug.Log("[KinectFullScan] ¡Meta alcanzada!");
+        }
+    }
+
+    // Método público para notificación externa
+    public void ReachGoal()
+    {
+        if (reachedGoal) return;
+        reachedGoal = true;
+        rb.linearVelocity = Vector2.zero;
+        Debug.Log("[KinectFullScan] Meta alcanzada (notificado externamente)");
     }
 
     // Detectar colisiones para debug
